@@ -126,4 +126,7 @@ public interface EventProcessorConstants {
 
     String SIDDHI_LINE_SEPARATER = "\n";
     String SIDDHI_SINGLE_QUOTE = "'";
+
+    String METRICS_ROOT = "CEP";
+    String METRICS_EXECUTION_PLANS = "ExecutionPlans";
 }

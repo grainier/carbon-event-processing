@@ -23,6 +23,9 @@ import org.wso2.carbon.event.processor.core.internal.util.EventProcessorConstant
 import org.wso2.carbon.event.statistics.EventStatisticsMonitor;
 import org.wso2.carbon.event.stream.core.EventProducer;
 import org.wso2.carbon.event.stream.core.EventProducerCallback;
+import org.wso2.carbon.metrics.manager.Counter;
+import org.wso2.carbon.metrics.manager.Level;
+import org.wso2.carbon.metrics.manager.MetricManager;
 import org.wso2.siddhi.core.event.Event;
 import org.wso2.siddhi.core.stream.output.StreamCallback;
 
@@ -36,6 +39,8 @@ public class SiddhiOutputStreamListener extends StreamCallback implements EventP
     private final String streamId;
     protected EventStatisticsMonitor statisticsMonitor;
     protected String tracerPrefix;
+    private Counter eventCounter;
+    private final String metricId;
     protected EventProducerCallback eventProducerCallback;
     private Logger trace = Logger.getLogger(EventProcessorConstants.EVENT_TRACE_LOGGER);
 
@@ -45,8 +50,10 @@ public class SiddhiOutputStreamListener extends StreamCallback implements EventP
         this.siddhiStreamName = siddhiStreamName;
         this.traceEnabled = executionPlanConfiguration.isTracingEnabled();
         this.statisticsEnabled = executionPlanConfiguration.isStatisticsEnabled();
+        this.metricId = EventProcessorConstants.METRICS_ROOT + "." + EventProcessorConstants.METRICS_EXECUTION_PLANS + "[+]." + executionPlanConfiguration.getName() + "[+]." + streamId.replaceAll("\\.", "_") + ".out-events";
         if (statisticsEnabled) {
             statisticsMonitor = EventProcessorValueHolder.getEventStatisticsService().getEventStatisticMonitor(tenantId, EventProcessorConstants.EVENT_PROCESSOR, executionPlanConfiguration.getName(), streamId + " (" + siddhiStreamName + ")");
+            eventCounter = MetricManager.counter(this.metricId, Level.INFO, Level.INFO, Level.INFO);
         }
         if (traceEnabled) {
             this.tracerPrefix = "TenantId : " + tenantId + ", " + EventProcessorConstants.EVENT_PROCESSOR + " : " + executionPlanConfiguration.getName() + ", " + EventProcessorConstants.EVENT_STREAM + " : " + streamId + " (" + siddhiStreamName + "), after processing " + System.getProperty("line.separator");
@@ -72,6 +79,7 @@ public class SiddhiOutputStreamListener extends StreamCallback implements EventP
             if (statisticsEnabled) {
                 for (Object obj : events) {
                     statisticsMonitor.incrementResponse();
+                    eventCounter.inc();
                 }
             }
             eventProducerCallback.sendEvents(events);
@@ -97,6 +105,7 @@ public class SiddhiOutputStreamListener extends StreamCallback implements EventP
             }
             if (statisticsEnabled) {
                 statisticsMonitor.incrementResponse();
+                eventCounter.inc();
             }
             eventProducerCallback.sendEvent(event);
         } finally {

@@ -23,6 +23,9 @@ import org.wso2.carbon.event.processor.core.internal.ds.EventProcessorValueHolde
 import org.wso2.carbon.event.processor.core.internal.util.EventProcessorConstants;
 import org.wso2.carbon.event.statistics.EventStatisticsMonitor;
 import org.wso2.carbon.event.stream.core.SiddhiEventConsumer;
+import org.wso2.carbon.metrics.manager.Counter;
+import org.wso2.carbon.metrics.manager.Level;
+import org.wso2.carbon.metrics.manager.MetricManager;
 import org.wso2.siddhi.core.event.Event;
 
 import java.util.Arrays;
@@ -41,7 +44,9 @@ public abstract class AbstractSiddhiInputEventDispatcher implements SiddhiEventC
     private final boolean traceEnabled;
     private final boolean statisticsEnabled;
     private EventStatisticsMonitor statisticsMonitor;
+    private Counter eventCounter;
     private String tracerPrefix = "";
+    private final String metricId;
 
     public AbstractSiddhiInputEventDispatcher(String streamId, String siddhiStreamId, ExecutionPlanConfiguration executionPlanConfiguration, int tenantId) {
         this.streamId = streamId;
@@ -50,8 +55,10 @@ public abstract class AbstractSiddhiInputEventDispatcher implements SiddhiEventC
         this.tenantId = tenantId;
         this.traceEnabled = executionPlanConfiguration.isTracingEnabled();
         this.statisticsEnabled = executionPlanConfiguration.isStatisticsEnabled();
+        this.metricId = EventProcessorConstants.METRICS_ROOT + "." + EventProcessorConstants.METRICS_EXECUTION_PLANS + "[+]." + executionPlanConfiguration.getName() + "[+]." + siddhiStreamId + ".in-events";
         if (statisticsEnabled) {
             statisticsMonitor = EventProcessorValueHolder.getEventStatisticsService().getEventStatisticMonitor(tenantId, EventProcessorConstants.EVENT_PROCESSOR, executionPlanConfiguration.getName(), streamId + " (" + siddhiStreamId + ")");
+            eventCounter = MetricManager.counter(this.metricId, Level.INFO, Level.INFO, Level.INFO);
         }
         if (traceEnabled) {
             this.tracerPrefix = "TenantId : " + tenantId + ", " + EventProcessorConstants.EVENT_PROCESSOR + " : " + executionPlanConfiguration.getName() + ", " + EventProcessorConstants.EVENT_STREAM + " : " + streamId + " (" + siddhiStreamId + "), before processing " + System.getProperty("line.separator");
@@ -72,6 +79,7 @@ public abstract class AbstractSiddhiInputEventDispatcher implements SiddhiEventC
             try {
                 if (statisticsEnabled) {
                     statisticsMonitor.incrementRequest();
+                    eventCounter.inc();
                 }
                 sendEvent(event);
             } catch (InterruptedException e) {
@@ -88,6 +96,7 @@ public abstract class AbstractSiddhiInputEventDispatcher implements SiddhiEventC
             }
             if (statisticsEnabled) {
                 statisticsMonitor.incrementRequest();
+                eventCounter.inc();
             }
             sendEvent(event);
         } catch (InterruptedException e) {
